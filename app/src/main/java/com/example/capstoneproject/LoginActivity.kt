@@ -2,10 +2,14 @@ package com.example.capstoneproject
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.capstoneproject.databinding.ActivityLoginBinding
+import com.example.capstoneproject.network.ApiClient
+import com.example.capstoneproject.network.LoginRequest
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 class LoginActivity : AppCompatActivity() {
 
@@ -17,52 +21,31 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check session
-        val sharedPref = getSharedPreferences("AppPreferences", MODE_PRIVATE)
-        if (sharedPref.getBoolean("isLoggedIn", false)) {
+        // Already have a token from a previous login? Skip straight to the app.
+        if (ApiClient.getToken() != null) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
         }
 
-        // Set up forgot password link
-        binding.forgotPasswordLink.setOnClickListener {
-            onForgotPasswordClick()
-        }
-
-        // Set up login button
-        binding.loginButton.setOnClickListener {
-            validateAndLogin()
-        }
-
-        // Set up create account button
-        binding.createAccountButton.setOnClickListener {
-            onCreateAccountClick()
-        }
-
-        // Clear error states on input
-        binding.emailInput.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                binding.emailInputLayout.error = null
-            }
-        }
-
-        binding.passwordInput.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                binding.passwordInputLayout.error = null
-            }
-        }
-
-        // Signup Redirect
+        binding.forgotPasswordLink.setOnClickListener { onForgotPasswordClick() }
+        binding.loginButton.setOnClickListener { validateAndLogin() }
+        binding.createAccountButton.setOnClickListener { onCreateAccountClick() }
         binding.tvCreateAccount.setOnClickListener {
             startActivity(Intent(this, SignupActivity::class.java))
+        }
+
+        binding.emailInput.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.emailInputLayout.error = null
+        }
+        binding.passwordInput.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.passwordInputLayout.error = null
         }
     }
 
     private fun validateAndLogin() {
         var isValid = true
 
-        // Validate email
         val email = binding.emailInput.text.toString().trim()
         if (email.isBlank()) {
             binding.emailInputLayout.error = "Email is required"
@@ -72,7 +55,6 @@ class LoginActivity : AppCompatActivity() {
             isValid = false
         }
 
-        // Validate password
         val password = binding.passwordInput.text.toString()
         if (password.isBlank()) {
             binding.passwordInputLayout.error = "Password is required"
@@ -82,43 +64,52 @@ class LoginActivity : AppCompatActivity() {
             isValid = false
         }
 
-        if (isValid) {
-            val rememberMe = binding.rememberMeCheckbox.isChecked
-            performLogin(email, password, rememberMe)
-        }
+        if (isValid) performLogin(email, password)
     }
 
-    private fun isValidEmail(email: String): Boolean {
-        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    }
+    private fun isValidEmail(email: String): Boolean =
+        android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
 
-    private fun performLogin(email: String, password: String, rememberMe: Boolean) {
-        // Save login state
-        val sharedPref = getSharedPreferences("AppPreferences", MODE_PRIVATE)
-        sharedPref.edit().apply {
-            putBoolean("isLoggedIn", true)
-            putString("email", email)
-            apply()
+    /** Calls POST /auth/login on the FastAPI backend and stores the bearer token. */
+    private fun performLogin(email: String, password: String) {
+        binding.loginButton.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val response = ApiClient.api.login(LoginRequest(email, password))
+                if (response.isSuccessful && response.body() != null) {
+                    ApiClient.saveToken(response.body()!!.access_token)
+
+                    // Keep the email for the Home/Profile screens
+                    getSharedPreferences("AppPreferences", MODE_PRIVATE).edit()
+                        .putBoolean("isLoggedIn", true)
+                        .putString("email", email)
+                        .apply()
+
+                    Toast.makeText(this@LoginActivity, "Welcome back!", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    finish()
+                } else {
+                    // 401 wrong password, 423 locked out, 422 validation
+                    binding.passwordInputLayout.error = ApiClient.errorMessage(response)
+                }
+            } catch (e: IOException) {
+                Toast.makeText(
+                    this@LoginActivity,
+                    "Can't reach the server. Is the backend running? (${e.message})",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.loginButton.isEnabled = true
+            }
         }
-
-        Toast.makeText(
-            this,
-            "Login successful for: $email",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        // Navigate to home screen
-        val intent = Intent(this, MainActivity::class.java)
-        startActivity(intent)
-        finish()
     }
 
     private fun onForgotPasswordClick() {
-        Toast.makeText(this, "Forgot password clicked", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Password reset is not available in this prototype", Toast.LENGTH_SHORT).show()
     }
 
     private fun onCreateAccountClick() {
         startActivity(Intent(this, SignupActivity::class.java))
     }
 }
-

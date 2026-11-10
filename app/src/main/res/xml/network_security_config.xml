@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Allows plain http to the dev backend only. Remove for production (use https). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- add your PC's LAN IP here if testing on a physical phone, e.g. -->
+        <!-- <domain includeSubdomains="false">192.168.1.20</domain> -->
+    </domain-config>
+</network-security-config>

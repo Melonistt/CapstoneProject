@@ -1,4 +1,4 @@
-# Backend API (FastAPI + Gemini)
+# Backend API (FastAPI + Groq / Gemini)
 
 The server the Android app calls for the AI coach. Python 3.12.
 
@@ -6,7 +6,7 @@ The server the Android app calls for the AI coach. Python 3.12.
 
 1. Open the `backend` folder in PyCharm (it picks up `.venv` automatically), or in a terminal:
    `py -m venv .venv` then `.venv\Scripts\activate.bat` then `pip install -r requirements.txt`
-2. Copy `.env.example` to `.env`. Set `JWT_SECRET` to any long random string and `GEMINI_API_KEY` to a key from https://aistudio.google.com (free tier).
+2. Copy `.env.example` to `.env`. Set `JWT_SECRET` to any long random string and ONE AI key: `GROQ_API_KEY` from https://console.groq.com/keys (free, no card) or `GEMINI_API_KEY` from https://aistudio.google.com. Groq is used automatically when its key is set.
 3. Run `run.py` (green arrow in PyCharm, or `python run.py`).
 4. Open http://localhost:8000/docs to try every endpoint in the browser.
 
@@ -48,7 +48,7 @@ app/main.py          FastAPI app, routers, table creation
 app/routers/auth.py  register / login / me
 app/routers/profile.py
 app/routers/ai.py    chat / recommend
-app/ai_service.py    Gemini wrapper + safety prompt
+app/ai_service.py    Groq/Gemini wrapper + safety prompt (provider chosen from .env)
 app/nutrition.py     calorie target (Mifflin-St Jeor)
 app/models.py        SQLAlchemy tables (SQLite file wellness.db; set DATABASE_URL for PostgreSQL)
 ```

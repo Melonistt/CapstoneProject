@@ -22,6 +22,12 @@ def _context(body_profile: ProfileIn | None, user: User | None, db: Session) -> 
     return ai_service.profile_context(p, daily_calorie_target(p) if p else None)
 
 
+@router.get("/models")
+def models():
+    """Which models the configured provider/key can use, and which one is active."""
+    return {"provider": ai_service.provider(), "active_model": ai_service.model_name(), "models": ai_service.list_models()}
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest, user: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     reply = ai_service.chat(body.message, body.history, _context(body.profile, user, db))
