@@ -10,6 +10,16 @@ The server the Android app calls for the AI coach. Python 3.12.
 3. Run `run.py` (green arrow in PyCharm, or `python run.py`).
 4. Open http://localhost:8000/docs to try every endpoint in the browser.
 
+## Automated tests
+
+`tests/` holds pytest tests (currently the History endpoints). They use their own throwaway database, so
+`wellness.db` is never touched. From the `backend` folder:
+
+```
+.venv\Scripts\python -m pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest -v
+```
+
 ## Connecting the Android app
 
 The app's `ApiClient.BASE_URL` is `http://127.0.0.1:8000/`. On the emulator, open a tunnel once per emulator boot
@@ -36,9 +46,12 @@ same Wi-Fi can use the PC's LAN IP instead — add it to `app/src/main/res/xml/n
 | POST | `/ai/recommend` | `kind`: `meal_plan` or `workout_plan`, `days` 1–7, optional `request`, optional `profile` |
 | POST | `/ai/estimate` | kcal + macros for a described meal (`description`, optional `portion`) — the food log's "fill in for me" |
 | GET | `/ai/models` | Models the configured key can use, and which is active |
-| POST / GET | `/log/meals` | Log a meal; get one day's meals with totals, calorie target and calories remaining (`?date=YYYY-MM-DD`) |
+| POST / GET | `/log/meals` | Log a meal; get one day's meals **and workouts** with totals, calories burned, net kcal, calorie target and calories remaining (`?date=YYYY-MM-DD`) |
+| GET | `/log/meals/history` | Food history: meals in the last `days` (default 30, max 365), newest first, with totals (meals, kcal, days logged, average kcal per logged day) — History screen, Food tab |
 | DELETE | `/log/meals/{id}` | Remove a logged meal |
-| GET | `/log/summary` | Calories per day for the last `days` (default 7), zero-filled — dashboard / weekly chart |
+| GET | `/log/summary` | Calories eaten and burned per day for the last `days` (default 7), zero-filled — dashboard / weekly chart |
+| POST / GET | `/log/workouts` | Record a completed session (kcal estimated from MET × weight × time if not given); history for the last `days` (default 7) with totals — Training history / Progress |
+| DELETE | `/log/workouts/{id}` | Remove a logged workout |
 | POST / GET | `/log/weight` | Record a weigh-in (also updates the profile weight); history with start/latest/change (`?days=90`) — Progress chart |
 | DELETE | `/log/weight/{id}` | Remove a weigh-in |
 | GET | `/health` | Liveness check |
@@ -60,6 +73,8 @@ Example `/ai/chat` body:
 
 Every logged meal carries a `source`: `manual` (typed by the user), `ai_estimate` (from `/ai/estimate`, which the user confirms or edits before saving), `ai_plan` (copied from an `/ai/recommend` meal plan) or `photo` (reserved for image analysis). Daily calorie targets are computed deterministically in `nutrition.py` (Mifflin-St Jeor), not by the AI.
 
+Workouts are logged the same way (`source` = `manual` or `ai_plan` when ticked off from an AI plan). If the user does not type calories burned, `nutrition.py` estimates them as MET × body weight (kg) × hours using one typical MET per workout type from the Compendium of Physical Activities (walking 3.5, running 9.8, cardio 7.0, strength 5.0, stretching 2.5). `GET /log/meals` returns meals and workouts together with `calories_remaining = target − eaten + burned` (the usual "exercise earns calories back" convention), and the AI coach receives a one-line summary of today's meals and workouts with every request so its answers reflect what the user has actually done.
+
 ## Safety rules built into every AI call
 
 No medical diagnoses or clinical advice; evidence-based guidance only; never includes a listed allergen; no crash diets or unsafe exercise. See `app/ai_service.py`.
@@ -73,6 +88,6 @@ app/routers/profile.py
 app/routers/ai.py    chat / recommend / estimate / models
 app/routers/log.py   meal log, daily totals, weekly summary, weigh-ins
 app/ai_service.py    Groq/Gemini wrapper + safety prompt (provider chosen from .env)
-app/nutrition.py     calorie target (Mifflin-St Jeor)
+app/nutrition.py     calorie target (Mifflin-St Jeor), workout kcal estimate (MET)
 app/models.py        SQLAlchemy tables: users, profiles, meal_logs, weight_logs (SQLite file wellness.db; set DATABASE_URL for PostgreSQL)
 ```

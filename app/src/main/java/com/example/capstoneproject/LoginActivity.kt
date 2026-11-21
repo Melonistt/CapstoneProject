@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.capstoneproject.databinding.ActivityLoginBinding
 import com.example.capstoneproject.network.ApiClient
 import com.example.capstoneproject.network.LoginRequest
+import com.example.capstoneproject.testing.AuthValidator
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -47,28 +48,17 @@ class LoginActivity : AppCompatActivity() {
         var isValid = true
 
         val email = binding.emailInput.text.toString().trim()
-        if (email.isBlank()) {
-            binding.emailInputLayout.error = "Email is required"
-            isValid = false
-        } else if (!isValidEmail(email)) {
-            binding.emailInputLayout.error = "Please enter a valid email"
-            isValid = false
-        }
-
         val password = binding.passwordInput.text.toString()
-        if (password.isBlank()) {
-            binding.passwordInputLayout.error = "Password is required"
-            isValid = false
-        } else if (password.length < 8) {
-            binding.passwordInputLayout.error = "Password must be at least 8 characters"
+        // Validation rules live in AuthValidator (unit-tested in app/src/test).
+        AuthValidator.validateLogin(email, password)?.let { message ->
+            if (message.lowercase().contains("email")) binding.emailInputLayout.error = message
+            else binding.passwordInputLayout.error = message
             isValid = false
         }
 
         if (isValid) performLogin(email, password)
     }
 
-    private fun isValidEmail(email: String): Boolean =
-        android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
 
     /** Calls POST /auth/login on the FastAPI backend and stores the bearer token. */
     private fun performLogin(email: String, password: String) {

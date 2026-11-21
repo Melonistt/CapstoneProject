@@ -49,6 +49,12 @@
         android:name="com.example.capstoneproject.ui.ProgressFragment"
         android:label="Progress" />
 
+    <!-- History: food and workout history (reached from Progress: "View food and workout history" button) -->
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.example.capstoneproject.ui.HistoryFragment"
+        android:label="History" />
+
     <!-- AI Coach (reached from Home) -->
     <fragment
         android:id="@+id/coachFragment"

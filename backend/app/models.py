@@ -73,3 +73,23 @@ class WeightLog(Base):
     weight_kg: Mapped[float] = mapped_column(Float)
     notes: Mapped[str | None] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class WorkoutLog(Base):
+    """A completed training session (client request 19 Nov: meals, workouts and the plan should be
+    "intertwined"). Logged from a plan day ("Mark as done") or by hand; kcal_burned is a MET estimate
+    unless the user typed a value."""
+
+    __tablename__ = "workout_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String(10), index=True)  # YYYY-MM-DD
+    name: Mapped[str] = mapped_column(String(200))  # e.g. "Day 1 - Full Body Strength" or "Evening walk"
+    workout_type: Mapped[str] = mapped_column(String(12))  # walking / running / cardio / strength / stretching / other
+    duration_min: Mapped[int] = mapped_column(Integer)
+    kcal_burned: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(10), default="manual")  # manual / ai_plan
+    plan_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # which day of the AI plan, if any
+    notes: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

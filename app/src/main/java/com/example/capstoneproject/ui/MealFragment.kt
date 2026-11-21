@@ -1,6 +1,15 @@
 package com.example.capstoneproject.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Bundle
+import android.util.Base64
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,8 +19,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.example.capstoneproject.R
 import com.example.capstoneproject.databinding.FragmentMealBinding
+import com.example.capstoneproject.network.AnalyseMealOut
+import com.example.capstoneproject.network.AnalyseMealRequest
 import com.example.capstoneproject.network.ApiClient
 import com.example.capstoneproject.network.EstimateRequest
 import com.example.capstoneproject.network.MealLogIn
@@ -20,7 +32,10 @@ import com.example.capstoneproject.network.PlanMeal
 import com.example.capstoneproject.network.RecommendRequest
 import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlin.math.roundToInt
 
@@ -38,6 +53,31 @@ class MealFragment : Fragment() {
 
     private val mealTypes = listOf("breakfast", "lunch", "dinner", "snack")
     private var lastEstimateSource = "manual"
+    private var lastAnalysis: AnalyseMealOut? = null
+
+    // ---- photo analysis (camera + gallery). TakePicturePreview returns a Bitmap directly, so no
+    // FileProvider is needed; PickVisualMedia uses the system photo picker (no storage permission).
+    private val takePhoto = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bmp ->
+        if (bmp != null) analysePhoto(bmp) else toast("No photo taken")
+    }
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+        if (uri == null) { toast("No photo chosen"); return@registerForActivityResult }
+        try {
+            val bmp = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                val src = ImageDecoder.createSource(requireContext().contentResolver, uri)
+                ImageDecoder.decodeBitmap(src) { decoder, _, _ -> decoder.isMutableRequired = false }
+            } else {
+                @Suppress("DEPRECATION")
+                android.provider.MediaStore.Images.Media.getBitmap(requireContext().contentResolver, uri)
+            }
+            analysePhoto(bmp)
+        } catch (e: Exception) {
+            toast("Couldn't read that image: ${e.message}")
+        }
+    }
+    private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) takePhoto.launch(null) else toast("Camera permission needed — or use From gallery")
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -56,6 +96,21 @@ class MealFragment : Fragment() {
         binding.acMealType.setText(guessMealType().replaceFirstChar(Char::uppercase), false)
 
         binding.btnAnalyse.setOnClickListener { estimate() }
+        binding.btnTakePhoto.setOnClickListener {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+                takePhoto.launch(null)
+            else askCamera.launch(Manifest.permission.CAMERA)
+        }
+        binding.btnPickPhoto.setOnClickListener {
+            pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+        binding.btnLogPhotoMeal.setOnClickListener { logPhotoMeal() }
+        binding.btnApplyTraining.setOnClickListener { applyTrainingSuggestion() }
+        binding.btnAdjustMealPlan.setOnClickListener {
+            val rest = lastAnalysis?.rest_of_day?.takeIf { it.isNotBlank() }
+            binding.etPlanRequest.setText(("Adjust the rest of today after this meal: ${lastAnalysis?.name ?: "a heavy meal"} (~${lastAnalysis?.kcal ?: 0} kcal). " + (rest ?: "")).trim())
+            generatePlan()
+        }
         binding.btnSaveMeal.setOnClickListener { saveManual() }
         binding.btnGeneratePlan.setOnClickListener { generatePlan() }
 
@@ -74,10 +129,12 @@ class MealFragment : Fragment() {
                     return@launch
                 }
                 val t = day.totals
-                val target = day.calorie_target?.let { " of $it kcal target" } ?: ""
-                binding.tvDayTotals.text =
-                    "Today: ${t.kcal} kcal$target • ${t.protein_g.roundToInt()}g protein • " +
-                        "${t.carbs_g.roundToInt()}g carbs • ${t.fat_g.roundToInt()}g fat"
+                val line1 = if (day.calorie_target != null)
+                    "Today: ${t.kcal} eaten − ${day.calories_burned} burned = ${day.net_kcal} net • ${day.calories_remaining} kcal left of ${day.calorie_target}"
+                else
+                    "Today: ${t.kcal} kcal eaten • ${day.calories_burned} burned (set your profile for a target)"
+                binding.tvDayTotals.text = line1 +
+                    "\n${t.protein_g.roundToInt()}g protein • ${t.carbs_g.roundToInt()}g carbs • ${t.fat_g.roundToInt()}g fat"
 
                 binding.llTodayMeals.removeAllViews()
                 if (day.meals.isEmpty()) {
@@ -101,6 +158,28 @@ class MealFragment : Fragment() {
                         }
                     }
                     binding.llTodayMeals.addView(row)
+                }
+                // Training logged today, so the food log reflects the whole day.
+                if (day.workouts.isNotEmpty()) {
+                    binding.llTodayMeals.addView(caption("Workouts today"))
+                    for (w in day.workouts) {
+                        val row = inflateRow(
+                            title = w.name,
+                            sub = "${w.duration_min} min • ${w.workout_type}" + if (w.source == "ai_plan") " • from plan" else "",
+                            kcal = "−${w.kcal_burned} kcal",
+                            action = "Delete"
+                        ) { btn ->
+                            btn.isEnabled = false
+                            viewLifecycleOwner.lifecycleScope.launch {
+                                try {
+                                    val r = ApiClient.api.deleteWorkout(w.id)
+                                    if (r.isSuccessful) loadToday() else toast(ApiClient.errorMessage(r))
+                                } catch (e: IOException) { toast("Can't reach the server") }
+                                finally { if (isAdded) btn.isEnabled = true }
+                            }
+                        }
+                        binding.llTodayMeals.addView(row)
+                    }
                 }
             } catch (e: IOException) {
                 binding.tvDayTotals.text = "Today: can't reach the server"
@@ -168,6 +247,108 @@ class MealFragment : Fragment() {
                 if (isAdded) binding.btnAnalyse.isEnabled = true
             }
         }
+    }
+
+    // ---------- photo analysis ----------
+
+    private fun analysePhoto(original: Bitmap) {
+        binding.ivMealPhoto.setImageBitmap(original)
+        binding.ivMealPhoto.visibility = View.VISIBLE
+        binding.llPhotoResult.visibility = View.GONE
+        binding.tvPhotoStatus.visibility = View.VISIBLE
+        binding.tvPhotoStatus.text = "Analysing your meal (5–15 s)…"
+        binding.btnTakePhoto.isEnabled = false; binding.btnPickPhoto.isEnabled = false
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                // Resize to <=1024 px and JPEG-compress off the main thread: ~150-200 KB upload.
+                val b64 = withContext(Dispatchers.Default) {
+                    val scale = minOf(1f, 1024f / maxOf(original.width, original.height))
+                    val bmp = if (scale < 1f) Bitmap.createScaledBitmap(
+                        original, (original.width * scale).toInt(), (original.height * scale).toInt(), true
+                    ) else original
+                    val out = ByteArrayOutputStream()
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                    Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+                }
+                val caption = binding.etDescribe.text?.toString()?.trim()?.ifEmpty { null }
+                val resp = ApiClient.api.analyseMeal(AnalyseMealRequest(image_base64 = b64, caption = caption))
+                val a = resp.body()
+                if (resp.isSuccessful && a != null) {
+                    showAnalysis(a)
+                } else {
+                    binding.tvPhotoStatus.text = "Analysis failed: ${ApiClient.errorMessage(resp)}. You can still describe the meal below."
+                }
+            } catch (e: IOException) {
+                binding.tvPhotoStatus.text = "Can't reach the server"
+            } catch (e: Exception) {
+                binding.tvPhotoStatus.text = "Error: ${e.message}"
+            } finally {
+                if (isAdded) { binding.btnTakePhoto.isEnabled = true; binding.btnPickPhoto.isEnabled = true }
+            }
+        }
+    }
+
+    private fun showAnalysis(a: AnalyseMealOut) {
+        lastAnalysis = a
+        binding.tvPhotoStatus.visibility = View.GONE
+        binding.llPhotoResult.visibility = View.VISIBLE
+        binding.tvPhotoName.text = a.name
+        binding.tvPhotoNutrition.text =
+            "≈ ${a.kcal} kcal • ${a.protein_g.roundToInt()}g protein • ${a.carbs_g.roundToInt()}g carbs • ${a.fat_g.roundToInt()}g fat" +
+                " (${a.confidence} confidence)" + (a.portion_assumption?.takeIf { it.isNotBlank() }?.let { "\nAssumed: $it" } ?: "")
+        val (label, colorRes) = when (a.verdict) {
+            "good_to_go" -> "Good to go" to R.color.colorPrimary
+            "smaller_portion" -> "Try a smaller portion" to R.color.colorAccent
+            "balance_it" -> "Fine — here's how to balance it" to R.color.info
+            else -> "Enjoy it as a treat" to R.color.colorAccent
+        }
+        binding.tvPhotoVerdict.text = label
+        binding.tvPhotoVerdict.background.setTint(ContextCompat.getColor(requireContext(), colorRes))
+        binding.tvPhotoReason.text = a.reason
+        binding.tvPhotoRestOfDay.text = a.rest_of_day?.takeIf { it.isNotBlank() }?.let { "Rest of today: $it" } ?: ""
+        binding.tvPhotoRestOfDay.visibility = if (binding.tvPhotoRestOfDay.text.isBlank()) View.GONE else View.VISIBLE
+
+        val ta = a.training_adjustment
+        binding.tvPhotoTraining.text = ta?.summary?.takeIf { it.isNotBlank() }?.let { "Training: $it" } ?: ""
+        binding.tvPhotoTraining.visibility = if (binding.tvPhotoTraining.text.isBlank()) View.GONE else View.VISIBLE
+        val ss = ta?.suggested_session
+        if (ss != null && ss.duration_min > 0) {
+            binding.btnApplyTraining.text = "Plan a ${ss.duration_min}-min ${ss.workout_type} session"
+            binding.btnApplyTraining.visibility = View.VISIBLE
+        } else binding.btnApplyTraining.visibility = View.GONE
+
+        // Also pre-fill the manual form so the user can tweak numbers before logging.
+        binding.etFoodName.setText(a.name)
+        binding.etCalories.setText(a.kcal.toString())
+        binding.etProtein.setText(fmt(a.protein_g)); binding.etCarbs.setText(fmt(a.carbs_g)); binding.etFat.setText(fmt(a.fat_g))
+        lastEstimateSource = "photo"
+    }
+
+    private fun logPhotoMeal() {
+        val a = lastAnalysis ?: return
+        val body = MealLogIn(
+            meal_type = selectedMealType(), name = a.name, kcal = a.kcal,
+            protein_g = a.protein_g, carbs_g = a.carbs_g, fat_g = a.fat_g, source = "photo"
+        )
+        postMeal(body, binding.btnLogPhotoMeal) {
+            binding.btnLogPhotoMeal.text = "Logged ✓"
+            binding.etFoodName.setText(""); binding.etCalories.setText("")
+            binding.etProtein.setText(""); binding.etCarbs.setText(""); binding.etFat.setText("")
+            lastEstimateSource = "manual"
+        }
+    }
+
+    /** Hands the suggested session to the Training tab's routine builder (it reads this on resume). */
+    private fun applyTrainingSuggestion() {
+        val a = lastAnalysis ?: return
+        val ss = a.training_adjustment?.suggested_session ?: return
+        val request = "Include a ${ss.duration_min} min ${ss.workout_type} session to balance a heavier meal today " +
+            "(${a.name}, ~${a.kcal} kcal). ${a.training_adjustment.summary ?: ""}".trim()
+        requireContext().getSharedPreferences("AppPreferences", 0).edit()
+            .putString("pending_training_request", request).apply()
+        toast("Opening Training with that suggestion")
+        try { findNavController().navigate(R.id.trainingFragment) } catch (e: Exception) { }
     }
 
     // ---------- AI meal plan ----------

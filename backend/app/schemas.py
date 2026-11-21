@@ -69,7 +69,7 @@ class ProfileOut(ProfileIn):
 
 # ---------- AI ----------
 class ChatTurn(BaseModel):
-    role: Literal["user", "assistant"]
+    role: Literal["user", "assistant", "model"]   # "model" = Gemini's name for assistant; normalised in ai_service
     text: str = Field(..., max_length=4000)
 
 
@@ -95,6 +95,7 @@ import re as _re  # noqa: E402
 
 MealType = Literal["breakfast", "lunch", "dinner", "snack"]
 LogSource = Literal["manual", "ai_estimate", "ai_plan", "photo"]
+WorkoutType = Literal["walking", "running", "cardio", "strength", "stretching", "other"]
 _DATE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -131,10 +132,63 @@ class DayTotals(BaseModel):
     fat_g: float
 
 
+class WorkoutLogIn(BaseModel):
+    date: str | None = Field(None, description="YYYY-MM-DD; defaults to today")
+    name: str = Field(..., min_length=1, max_length=200)
+    workout_type: WorkoutType = "other"
+    duration_min: int = Field(..., ge=1, le=600)
+    kcal_burned: int | None = Field(None, ge=0, le=5000, description="Leave empty to get a MET-based estimate")
+    source: Literal["manual", "ai_plan"] = "manual"
+    plan_day: int | None = Field(None, ge=1, le=14)
+    notes: str | None = Field(None, max_length=300)
+
+    _d = field_validator("date")(classmethod(lambda cls, v: _check_date(v)))
+
+
+class WorkoutLogOut(WorkoutLogIn):
+    id: str
+    date: str
+    kcal_burned: int
+
+    model_config = {"from_attributes": True}
+
+
+class WorkoutTotals(BaseModel):
+    sessions: int
+    minutes: int
+    kcal_burned: int
+
+
+class WorkoutHistoryOut(BaseModel):
+    entries: list[WorkoutLogOut]   # newest first
+    totals: WorkoutTotals
+    days: int
+
+
+class MealHistoryTotals(BaseModel):
+    meals: int
+    kcal: int
+    days_logged: int               # days with at least one meal
+    avg_kcal_per_logged_day: int   # kcal / days_logged; days with nothing logged are left out
+
+
+class MealHistoryOut(BaseModel):
+    """Food history for the History screen. Same shape as WorkoutHistoryOut so the app treats both alike."""
+    entries: list[MealLogOut]      # newest first
+    totals: MealHistoryTotals
+    days: int
+
+
 class DayLogOut(BaseModel):
+    """One day, food and training together (the dashboard's single source of truth).
+    calories_remaining = target - eaten + burned, the usual 'exercise earns calories back' convention."""
+
     date: str
     meals: list[MealLogOut]
     totals: DayTotals
+    workouts: list[WorkoutLogOut]
+    calories_burned: int
+    net_kcal: int                   # eaten - burned
     calorie_target: int | None
     calories_remaining: int | None
 
@@ -143,6 +197,8 @@ class DaySummary(BaseModel):
     date: str
     kcal: int
     meals: int
+    kcal_burned: int = 0
+    workouts: int = 0
 
 
 class WeightLogIn(BaseModel):
@@ -170,6 +226,37 @@ class WeightHistoryOut(BaseModel):
 class EstimateRequest(BaseModel):
     description: str = Field(..., min_length=2, max_length=500, description='e.g. "large chicken caesar salad"')
     portion: str | None = Field(None, max_length=100, description='optional, e.g. "1 bowl", "250 g"')
+
+
+class AnalyseMealRequest(BaseModel):
+    image_base64: str = Field(..., min_length=100, max_length=6_000_000, description="JPEG/PNG, base64 (app resizes to ~1024 px)")
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
+    caption: str | None = Field(None, max_length=200, description='optional, e.g. "my lunch, large bowl"')
+
+
+class SuggestedSession(BaseModel):
+    workout_type: WorkoutType = "walking"
+    duration_min: int = Field(..., ge=5, le=60)
+
+
+class TrainingAdjustment(BaseModel):
+    summary: str
+    suggested_session: SuggestedSession | None = None
+
+
+class AnalyseMealOut(BaseModel):
+    name: str
+    portion_assumption: str = ""
+    kcal: int
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    confidence: Literal["low", "medium", "high"]
+    verdict: Literal["good_to_go", "smaller_portion", "balance_it", "enjoy_as_treat"]
+    reason: str
+    rest_of_day: str = ""
+    training_adjustment: TrainingAdjustment
+    source: str = "photo"
 
 
 class EstimateOut(BaseModel):

@@ -24,6 +24,14 @@ Rules you must always follow:
 - Respect the user's dietary preferences and allergies at all times; never include a listed allergen.
 - Be friendly, concise and practical. Use metric units and Australian spelling."""
 
+CHAT_STYLE = """Reply format for chat: be brief. At most 4 short sentences, or up to 5 one-line bullet points
+(about 80 words). No preamble, no headings, no bold. Give the single most useful answer rather than every
+option. Only go longer if the user explicitly asks for a full plan, recipe or detailed explanation."""
+
+# Output caps per call type. Chat is deliberately small so the coach stays snappy on a phone screen.
+CHAT_MAX_TOKENS = 350
+PLAN_MAX_TOKENS = 4096
+
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -67,6 +75,34 @@ def profile_context(profile, calorie_target) -> str:
     return "User profile: " + json.dumps(known)
 
 
+def today_context(day) -> str:
+    """One line on what the user has eaten and trained today, so the coach can refer to it
+    ('you've already done your strength session, so...'). `day` is a DayLogOut; None = not logged in."""
+    if day is None:
+        return ""
+    meals = ", ".join(f"{m.name} ({m.kcal} kcal)" for m in day.meals) or "nothing logged yet"
+    workouts = ", ".join(f"{w.name} ({w.duration_min} min, ~{w.kcal_burned} kcal)" for w in day.workouts) or "none yet"
+    remaining = f"{day.calories_remaining} kcal remaining" if day.calories_remaining is not None else "no target set"
+    return (
+        f"Today so far ({day.date}): eaten {day.totals.kcal} kcal [{meals}]; "
+        f"workouts: {workouts}; {remaining}. Refer to this when it is relevant to the question."
+    )
+
+
+def week_context(days, workouts) -> str:
+    """Last-7-day summary so the coach can answer 'this week' questions. `days` = list of DaySummary
+    (oldest first), `workouts` = WorkoutHistoryOut."""
+    logged = [d for d in days if d.meals > 0]
+    avg_eaten = round(sum(d.kcal for d in logged) / len(logged)) if logged else None
+    t = workouts.totals
+    sessions = "; ".join(f"{w.date}: {w.name} ({w.duration_min} min, {w.workout_type})" for w in workouts.entries[:7]) or "none"
+    eaten_part = f"average {avg_eaten} kcal eaten per day over {len(logged)} logged day(s)" if avg_eaten else "no meals logged"
+    return (
+        f"Last 7 days: {eaten_part}; {t.sessions} workout(s), {t.minutes} min, ~{t.kcal_burned} kcal burned "
+        f"[{sessions}]."
+    )
+
+
 def _wrap_vendor_error(exc: Exception) -> HTTPException:
     # network, quota, bad key, etc. (planning report risk R4) -> clean 502, app keeps working
     log.exception("AI call failed (%s)", provider())
@@ -88,13 +124,13 @@ def _wrap_vendor_error(exc: Exception) -> HTTPException:
 
 
 # ---------------------------------------------------------------- Groq (OpenAI-compatible)
-def _groq_generate(messages: list[dict], system: str, json_mode: bool) -> str:
+def _groq_generate(messages: list[dict], system: str, json_mode: bool, max_tokens: int) -> str:
     key = _require_key("GROQ_API_KEY")
     body = {
         "model": model_name(),
         "messages": [{"role": "system", "content": system}] + messages,
         "temperature": 0.7,
-        "max_tokens": 4096,
+        "max_tokens": max_tokens,
     }
     if json_mode:
         body["response_format"] = {"type": "json_object"}
@@ -116,15 +152,21 @@ def _groq_generate(messages: list[dict], system: str, json_mode: bool) -> str:
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
-def _gemini_generate(messages: list[dict], system: str, json_mode: bool) -> str:
+def _gemini_generate(messages: list[dict], system: str, json_mode: bool, max_tokens: int,
+                     image: tuple[str, str] | None = None) -> str:
+    """image = (mime_type, base64_data) attached to the last user turn (meal photo analysis)."""
     key = _require_key("GEMINI_API_KEY")
+    contents = [
+        {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+        for m in messages
+    ]
+    if image is not None:
+        mime, data = image
+        contents[-1]["parts"].append({"inline_data": {"mime_type": mime, "data": data}})
     body = {
         "system_instruction": {"parts": [{"text": system}]},
-        "contents": [
-            {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
-            for m in messages
-        ],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 4096},
+        "contents": contents,
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": max_tokens},
     }
     if json_mode:
         body["generationConfig"]["responseMimeType"] = "application/json"
@@ -137,10 +179,16 @@ def _gemini_generate(messages: list[dict], system: str, json_mode: bool) -> str:
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read())
-        parts = data["candidates"][0]["content"]["parts"]
+        cand = data["candidates"][0]
+        parts = cand.get("content", {}).get("parts", [])
         text = "".join(p.get("text", "") for p in parts)
     except Exception as exc:
         raise _wrap_vendor_error(exc) from exc
+    if not text.strip() and cand.get("finishReason") == "MAX_TOKENS" and max_tokens < PLAN_MAX_TOKENS:
+        # Newer Gemini models spend output tokens on internal reasoning first; a tight cap can
+        # leave no room for the visible answer. Retry once with the full budget.
+        log.warning("Gemini returned no text under a %d-token cap; retrying uncapped", max_tokens)
+        return _gemini_generate(messages, system, json_mode, PLAN_MAX_TOKENS, image)
     return text.strip()
 
 
@@ -171,18 +219,23 @@ def list_models() -> list[dict]:
     ]
 
 
-def _generate(messages: list[dict], system: str, json_mode: bool = False) -> str:
+def _generate(messages: list[dict], system: str, json_mode: bool = False, max_tokens: int = PLAN_MAX_TOKENS,
+              image: tuple[str, str] | None = None) -> str:
     """messages: OpenAI-style [{"role": "user"|"assistant", "content": str}, ...]"""
     if provider() == "groq":
-        return _groq_generate(messages, system, json_mode)
-    return _gemini_generate(messages, system, json_mode)
+        if image is not None:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                                "Photo analysis needs the Gemini provider; describe the meal in words instead")
+        return _groq_generate(messages, system, json_mode, max_tokens)
+    return _gemini_generate(messages, system, json_mode, max_tokens, image)
 
 
 # ---------------------------------------------------------------- public API used by routers
 def chat(message: str, history: list, context: str) -> str:
-    messages = [{"role": t.role, "content": t.text} for t in history]
+    # "model" is Gemini's name for the assistant turn; accept it so older app builds keep working.
+    messages = [{"role": "assistant" if t.role in ("assistant", "model") else "user", "content": t.text} for t in history]
     messages.append({"role": "user", "content": message})
-    return _generate(messages, SAFETY_RULES + "\n\n" + context)
+    return _generate(messages, SAFETY_RULES + "\n\n" + CHAT_STYLE + "\n\n" + context, max_tokens=CHAT_MAX_TOKENS)
 
 
 MEAL_SCHEMA = """Return JSON only, shaped like:
@@ -227,3 +280,46 @@ def estimate_meal(description: str, portion: str | None) -> dict:
     except json.JSONDecodeError:
         log.warning("AI returned non-JSON estimate: %.200s", raw)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "AI returned an unreadable estimate, please try again")
+
+
+ANALYSE_SCHEMA = """Return JSON only, shaped like:
+{"name":"","portion_assumption":"","kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,
+ "confidence":"low|medium|high",
+ "verdict":"good_to_go|smaller_portion|balance_it|enjoy_as_treat",
+ "reason":"",
+ "rest_of_day":"",
+ "training_adjustment":{"summary":"","suggested_session":{"workout_type":"walking|running|cardio|strength|stretching|other","duration_min":0}}}
+Rules:
+- Identify the food in the photo (use the caption if given). Estimate ONE typical serving as shown, using
+  mainstream reference values (e.g. Australian Food Composition Database). State the portion you assumed.
+- "verdict" and "reason" must use the user's remaining calories for today, their goal and today's training from
+  the context. Tone: coaching, never shaming. Food is not "bad"; the question is how it fits the day.
+  good_to_go = fits comfortably; smaller_portion = fits if ~2/3 of it; balance_it = heavy for the remaining budget,
+  suggest how to balance it (lighter next meal, a walk); enjoy_as_treat = occasional, enjoy it and move on.
+- "rest_of_day": one sentence on what the next meal(s) today could look like given this meal (protein/veg focus,
+  lighter dinner, etc.).
+- "training_adjustment.summary": one sentence; if nothing needs to change say so. "suggested_session" is a single
+  optional extra or modified session for today or tomorrow (null if not needed). Never suggest exercise as
+  punishment, never more than 60 minutes extra, never below the calorie floor.
+- Integers for kcal and duration, one decimal for grams. If the photo is not food, set name to "not food",
+  kcal 0, confidence "low", verdict "good_to_go" and explain in reason."""
+
+ANALYSE_MAX_TOKENS = 700
+
+
+def analyse_meal(image_mime: str, image_b64: str, caption: str | None, context: str) -> dict:
+    """Photo of a meal -> what it is, rough nutrition, and a personal verdict against today's budget and
+    training (client request 19 Nov: camera feature with 'fine - here's how to balance it' guidance)."""
+    prompt = "Analyse the meal in this photo." + (f" The user says: {caption}." if caption else "")
+    raw = _generate(
+        [{"role": "user", "content": prompt}],
+        SAFETY_RULES + "\n\n" + ANALYSE_SCHEMA + "\n\n" + context,
+        json_mode=True,
+        max_tokens=ANALYSE_MAX_TOKENS,
+        image=(image_mime, image_b64),
+    )
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        log.warning("AI returned non-JSON meal analysis: %.200s", raw)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "AI returned an unreadable analysis, please try again")

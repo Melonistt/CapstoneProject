@@ -66,7 +66,7 @@ class CoachFragment : Fragment() {
                     val reply = (resp.body()?.reply ?: "(no reply)").stripMarkdown()
                     thinking.text = reply
                     history += ChatTurn("user", text)
-                    history += ChatTurn("model", reply)
+                    history += ChatTurn("assistant", reply)
                 } else {
                     val msg = ApiClient.errorMessage(resp)
                     thinking.text = if (resp.code() == 502 || resp.code() == 503)

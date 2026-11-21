@@ -26,6 +26,7 @@ class HomeFragment : Fragment() {
     private var tvCaloriesEaten: TextView? = null
     private var tvProteinToday: TextView? = null
     private var pbCalories: ProgressBar? = null
+    private var tvWorkoutsToday: TextView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,6 +54,7 @@ class HomeFragment : Fragment() {
         tvCaloriesEaten = view.findViewById(R.id.tvCaloriesEaten)
         tvProteinToday = view.findViewById(R.id.tvProteinToday)
         pbCalories = view.findViewById(R.id.pbCalories)
+        tvWorkoutsToday = view.findViewById(R.id.tvWorkoutsToday)
     }
 
     private fun setClickListeners() {
@@ -92,18 +94,30 @@ class HomeFragment : Fragment() {
                 val day = resp.body()
                 if (resp.isSuccessful && day != null) {
                     val eaten = day.totals.kcal
+                    val burned = day.calories_burned
                     val target = day.calorie_target
                     tvTodayStats?.text = if (target != null)
-                        "Today: ${day.meals.size} meals • $eaten / $target kcal"
+                        "Today: $eaten eaten • $burned burned • ${day.calories_remaining ?: 0} kcal left"
                     else
-                        "Today: ${day.meals.size} meals • $eaten kcal (set your profile for a target)"
+                        "No calorie target yet — tap here to finish your profile"
+                    tvTodayStats?.setOnClickListener(
+                        if (target == null) View.OnClickListener {
+                            try { findNavController().navigate(R.id.profileFragment) } catch (e: Exception) { }
+                        } else null
+                    )
 
-                    tvCaloriesEaten?.text = "$eaten kcal"
+                    tvCaloriesEaten?.text = if (burned > 0) "$eaten kcal (−$burned)" else "$eaten kcal"
                     tvProteinToday?.text = "${day.totals.protein_g.toInt()} g"
+                    tvWorkoutsToday?.text = when (day.workouts.size) {
+                        0 -> "Rest day"
+                        1 -> "${day.workouts[0].name} • ${day.workouts[0].duration_min} min"
+                        else -> "${day.workouts.size} sessions • ${day.workouts.sumOf { it.duration_min }} min"
+                    }
                     if (target != null) {
-                        val remaining = (target - eaten).coerceAtLeast(0)
+                        // Remaining includes calories earned back from exercise (server rule).
+                        val remaining = (day.calories_remaining ?: (target - eaten)).coerceAtLeast(0)
                         tvCaloriesRemaining?.text = "%,d".format(remaining)
-                        pbCalories?.progress = (eaten * 100 / target).coerceIn(0, 100)
+                        pbCalories?.progress = (day.net_kcal.coerceAtLeast(0) * 100 / target).coerceIn(0, 100)
                     } else {
                         tvCaloriesRemaining?.text = "—"
                         pbCalories?.progress = 0

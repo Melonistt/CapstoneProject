@@ -99,6 +99,14 @@ class ProfileFragment : Fragment() {
     private fun loadProfile() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
+                // Header from the server account record, so it is right for accounts created before
+                // the app started caching the name locally.
+                val me = ApiClient.api.me()
+                me.body()?.let { u ->
+                    val full = listOf(u.first_name, u.last_name).filter { it.isNotBlank() }.joinToString(" ")
+                    if (full.isNotBlank()) view?.findViewById<TextView>(R.id.tvUserName)?.text = full
+                    view?.findViewById<TextView>(R.id.tvUserEmail)?.text = u.email
+                }
                 val response = ApiClient.api.getProfile()
                 if (response.isSuccessful) response.body()?.let { show(it) }
                 else toast(ApiClient.errorMessage(response))

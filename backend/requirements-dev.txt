@@ -1,0 +1,4 @@
+# Extra packages for running the automated tests (backend/tests). Not needed to run the server.
+-r requirements.txt
+pytest>=8.0
+httpx>=0.27

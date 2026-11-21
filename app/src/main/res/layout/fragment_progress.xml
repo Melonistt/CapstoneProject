@@ -4,42 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/background">
+    android:background="@color/background"
+    android:paddingBottom="56dp">
 
-    <!-- Header Section -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="@color/surface">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/progress_title"
-            android:textStyle="bold"
-            android:textSize="24sp"
-            android:textColor="@color/text_primary"
-            android:lineSpacingMultiplier="1.3" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/progress_subtitle"
-            android:textSize="15sp"
-            android:textColor="@color/text_secondary"
-            android:layout_marginTop="4dp"
-            android:lineSpacingMultiplier="1.5" />
-
-    </LinearLayout>
-
-    <!-- Scrollable Content -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@color/background">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -47,544 +17,259 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Stats Overview Cards -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/progress_title"
+                style="@style/TextDisplay" />
+
+            <TextView
+                android:id="@+id/tvProgressSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp"
+                android:text="Last 7 days"
+                style="@style/TextCaption" />
+
+            <!-- Opens the History screen (ui/HistoryFragment.kt) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOpenHistory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="View food &amp; workout history"
+                style="@style/ButtonStyle.Secondary" />
+
+            <!-- Summary tiles -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:spacing="12dp">
+                android:layout_marginBottom="16dp">
 
-                <!-- Workouts Completed Card -->
-                <LinearLayout
+                <androidx.cardview.widget.CardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:padding="16dp"
-                    android:background="@drawable/card_background"
-                    android:elevation="2dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="24"
-                        android:textStyle="bold"
-                        android:textSize="24sp"
-                        android:textColor="@color/colorPrimary"
-                        android:lineSpacingMultiplier="1.3" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/workout_label"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginTop="4dp"
-                        android:lineSpacingMultiplier="1.4" />
-
-                </LinearLayout>
-
-                <!-- Calories Burned Card -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:padding="16dp"
-                    android:background="@drawable/card_background"
-                    android:elevation="2dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="2,450"
-                        android:textStyle="bold"
-                        android:textSize="24sp"
-                        android:textColor="@color/colorAccent"
-                        android:lineSpacingMultiplier="1.3" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/calories_label"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginTop="4dp"
-                        android:lineSpacingMultiplier="1.4" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- Progress Chart Section -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/card_background"
-                android:elevation="2dp"
-                android:layout_marginTop="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/weight_header"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/text_primary"
-                    android:lineSpacingMultiplier="1.35" />
-
-                <!-- Chart Placeholder -->
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:background="@color/background"
-                    android:layout_marginTop="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📊 Chart Visualization"
-                        android:textSize="15sp"
-                        android:textColor="@color/text_secondary"
+                        android:orientation="vertical"
                         android:gravity="center"
-                        android:layout_gravity="center" />
+                        android:padding="12dp">
+                        <TextView
+                            android:id="@+id/tvWorkoutsWeek"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            style="@style/TextDisplay"
+                            android:textColor="@color/colorPrimary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Workouts"
+                            style="@style/TextCaption" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
 
-                </FrameLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <androidx.cardview.widget.CardView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="12dp"
-                    android:spacing="8dp">
-
+                    android:layout_weight="1"
+                    android:layout_marginStart="3dp"
+                    android:layout_marginEnd="3dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp">
+                        <TextView
+                            android:id="@+id/tvAvgEaten"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            style="@style/TextDisplay"
+                            android:textColor="@color/colorPrimary" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/current_label"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="72 kg"
-                            android:textStyle="bold"
-                            android:textSize="15sp"
-                            android:textColor="@color/text_primary"
-                            android:layout_marginTop="2dp"
-                            android:lineSpacingMultiplier="1.5" />
-
+                            android:text="Avg kcal / day"
+                            style="@style/TextCaption" />
                     </LinearLayout>
+                </androidx.cardview.widget.CardView>
 
+                <androidx.cardview.widget.CardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp">
+                        <TextView
+                            android:id="@+id/tvBurnedWeek"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            style="@style/TextDisplay"
+                            android:textColor="@color/colorAccent" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/goal_label"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="68 kg"
-                            android:textStyle="bold"
-                            android:textSize="15sp"
-                            android:textColor="@color/text_primary"
-                            android:layout_marginTop="2dp"
-                            android:lineSpacingMultiplier="1.5" />
-
+                            android:text="kcal burned"
+                            style="@style/TextCaption" />
                     </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/progress_label"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="−4 kg"
-                            android:textStyle="bold"
-                            android:textSize="15sp"
-                            android:textColor="@color/colorPrimary"
-                            android:layout_marginTop="2dp"
-                            android:lineSpacingMultiplier="1.5" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
+                </androidx.cardview.widget.CardView>
             </LinearLayout>
 
-            <!-- Weekly Stats -->
-            <LinearLayout
+            <!-- Week chart -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/card_background"
-                android:elevation="2dp"
-                android:layout_marginTop="16dp">
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/week_header"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/text_primary"
-                    android:lineSpacingMultiplier="1.35" />
-
-                <!-- Day Stats -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="12dp"
-                    android:spacing="8dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Calories eaten vs burned"
+                        style="@style/TextHeading" />
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Mon"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="60dp"
-                            android:background="@color/colorPrimary"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="420 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp">
+                        <View android:layout_width="10dp" android:layout_height="10dp" android:layout_gravity="center_vertical" android:background="@color/colorPrimary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginEnd="12dp" android:text="Eaten" style="@style/TextCaption" />
+                        <View android:layout_width="10dp" android:layout_height="10dp" android:layout_gravity="center_vertical" android:background="@color/colorAccent" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginEnd="12dp" android:text="Burned" style="@style/TextCaption" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="- - target" style="@style/TextCaption" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <com.example.capstoneproject.ui.charts.WeekBarChartView
+                        android:id="@+id/chartWeek"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp" />
+
+                    <TextView
+                        android:id="@+id/tvWeekNote"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Tue"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="80dp"
-                            android:background="@color/colorPrimary"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="580 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Wed"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="40dp"
-                            android:background="@color/colorPrimary"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="340 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Thu"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="70dp"
-                            android:background="@color/colorPrimary"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="510 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Fri"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="90dp"
-                            android:background="@color/colorAccent"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="650 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Sat"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"
-                            android:lineSpacingMultiplier="1.4" />
-
-                        <View
-                            android:layout_width="24dp"
-                            android:layout_height="50dp"
-                            android:background="@color/colorPrimary"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="380 cal"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="4dp"
-                            android:lineSpacingMultiplier="1.4" />
-
-                    </LinearLayout>
-
+                        android:layout_marginTop="8dp"
+                        style="@style/TextCaption" />
                 </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-            </LinearLayout>
-
-            <!-- Achievements Section -->
-            <LinearLayout
+            <!-- Weight -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/card_background"
-                android:elevation="2dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/achievement_header"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/text_primary"
-                    android:lineSpacingMultiplier="1.35" />
-
-                <!-- Achievement Badges -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="12dp"
-                    android:spacing="12dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/weight_header"
+                        style="@style/TextHeading" />
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="12dp"
-                        android:background="@color/background">
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🏆"
-                            android:textSize="24sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Week Streak"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:lineSpacingMultiplier="1.4" />
-
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Start" style="@style/TextCaption" />
+                            <TextView android:id="@+id/tvWeightStart" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" style="@style/TextBody" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/current_label" style="@style/TextCaption" />
+                            <TextView android:id="@+id/tvWeightCurrent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" style="@style/TextBody" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Change" style="@style/TextCaption" />
+                            <TextView android:id="@+id/tvWeightChange" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" style="@style/TextBody" android:textColor="@color/colorPrimary" />
+                        </LinearLayout>
                     </LinearLayout>
+
+                    <com.example.capstoneproject.ui.charts.WeightLineChartView
+                        android:id="@+id/chartWeight"
+                        android:layout_width="match_parent"
+                        android:layout_height="160dp"
+                        android:layout_marginTop="8dp" />
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="12dp"
-                        android:background="@color/background">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
 
-                        <TextView
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:hint="Today's weight (kg)">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etWeightToday"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLogWeight"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="⚡"
-                            android:textSize="24sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="5K Calories"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:lineSpacingMultiplier="1.4" />
-
+                            android:text="Log"
+                            style="@style/ButtonStyle.Primary" />
                     </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Logging a weigh-in also updates your profile weight, so your calorie target follows your progress."
+                        style="@style/TextCaption" />
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:id="@+id/llWeighIns"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:orientation="vertical"
-                        android:gravity="center_horizontal"
-                        android:padding="12dp"
-                        android:background="@color/background">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🎯"
-                            android:textSize="24sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Goal Reached"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:lineSpacingMultiplier="1.4" />
-
-                    </LinearLayout>
-
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
-
-            </LinearLayout>
-
+            </androidx.cardview.widget.CardView>
         </LinearLayout>
-
     </ScrollView>
-
 </LinearLayout>

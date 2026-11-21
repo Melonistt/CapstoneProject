@@ -59,7 +59,141 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="12dp"
-                        android:text="Describe what you ate and the AI will estimate calories and macros. Check the result before saving."
+                        android:text="Snap or pick a photo of your meal and the AI will tell you what it is, roughly what's in it, and how it fits your day. Or describe it in words below."
+                        style="@style/TextCaption" />
+
+                    <!-- Photo analysis -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_take_photo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="Take photo"
+                            app:icon="@drawable/ic_camera"
+                            style="@style/ButtonStyle.Primary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_pick_photo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="From gallery"
+                            style="@style/ButtonStyle.Secondary" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/ivMealPhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:layout_marginBottom="8dp"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"
+                        android:contentDescription="Meal photo" />
+
+                    <TextView
+                        android:id="@+id/tvPhotoStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="gone"
+                        style="@style/TextCaption" />
+
+                    <!-- Photo result card -->
+                    <LinearLayout
+                        android:id="@+id/llPhotoResult"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="@drawable/card_background"
+                        android:padding="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/tvPhotoName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            style="@style/TextHeading" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoNutrition"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            style="@style/TextBody" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoVerdict"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:background="@drawable/avatar_background"
+                            android:textColor="@android:color/white"
+                            style="@style/TextCaption" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoReason"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            style="@style/TextBody" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoRestOfDay"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            style="@style/TextCaption" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoTraining"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            style="@style/TextCaption" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_log_photo_meal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Log this meal"
+                            style="@style/ButtonStyle.Primary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_apply_training"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:visibility="gone"
+                            style="@style/ButtonStyle.Secondary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_adjust_meal_plan"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Adjust the rest of today's meal plan"
+                            style="@style/ButtonStyle.Secondary" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:text="Or describe it"
                         style="@style/TextCaption" />
 
                     <com.google.android.material.textfield.TextInputLayout

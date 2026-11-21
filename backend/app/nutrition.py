@@ -23,3 +23,23 @@ def daily_calorie_target(profile) -> int | None:
     tdee = bmr * ACTIVITY_FACTORS[profile.activity_level]
     target = tdee + GOAL_ADJUST.get(profile.goal or "", 0)
     return int(round(max(target, MIN_CALORIES[profile.sex]) / 10) * 10)
+
+
+# Metabolic equivalents (Compendium of Physical Activities, Ainsworth et al. 2011), one typical value per
+# workout type the app offers. kcal = MET x body weight (kg) x hours.
+MET = {
+    "walking": 3.5,      # brisk walk ~5 km/h
+    "running": 9.8,      # ~9.5 km/h
+    "cardio": 7.0,       # general aerobic / HIIT-style circuit
+    "strength": 5.0,     # resistance training, vigorous effort
+    "stretching": 2.5,   # stretching / yoga
+    "other": 4.0,
+}
+DEFAULT_WEIGHT_KG = 75.0
+
+
+def estimate_workout_kcal(workout_type: str, duration_min: int, weight_kg: float | None) -> int:
+    """Rough energy cost of a session. An estimate, shown to the user as such."""
+    met = MET.get(workout_type, MET["other"])
+    kg = weight_kg or DEFAULT_WEIGHT_KG
+    return int(round(met * kg * (duration_min / 60.0)))

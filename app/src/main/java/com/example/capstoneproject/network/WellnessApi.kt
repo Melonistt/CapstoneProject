@@ -43,6 +43,10 @@ interface WellnessApi {
     @POST("ai/estimate")
     suspend fun estimate(@Body body: EstimateRequest): Response<EstimateOut>
 
+    /** Meal photo -> identification, nutrition estimate and a coaching verdict (login required). */
+    @POST("ai/analyse-meal")
+    suspend fun analyseMeal(@Body body: AnalyseMealRequest): Response<AnalyseMealOut>
+
     // ---- food log (token required) ----
     @POST("log/meals")
     suspend fun addMeal(@Body body: MealLogIn): Response<MealLogOut>
@@ -51,12 +55,27 @@ interface WellnessApi {
     @GET("log/meals")
     suspend fun dayLog(@Query("date") date: String? = null): Response<DayLogOut>
 
+    /** Meals over the last N days, newest first, with totals — History screen, Food tab. */
+    @GET("log/meals/history")
+    suspend fun mealHistory(@Query("days") days: Int = 30): Response<MealHistoryOut>
+
     @DELETE("log/meals/{id}")
     suspend fun deleteMeal(@Path("id") id: String): Response<Unit>
 
     /** kcal per day for the last N days, oldest first, zero-filled — dashboard / weekly chart. */
     @GET("log/summary")
     suspend fun summary(@Query("days") days: Int = 7): Response<List<DaySummary>>
+
+    // ---- workouts ----
+    @POST("log/workouts")
+    suspend fun addWorkout(@Body body: WorkoutLogIn): Response<WorkoutLogOut>
+
+    /** Sessions in the last N days, newest first, with totals. */
+    @GET("log/workouts")
+    suspend fun workoutHistory(@Query("days") days: Int = 7): Response<WorkoutHistoryOut>
+
+    @DELETE("log/workouts/{id}")
+    suspend fun deleteWorkout(@Path("id") id: String): Response<Unit>
 
     // ---- weight / progress ----
     @POST("log/weight")

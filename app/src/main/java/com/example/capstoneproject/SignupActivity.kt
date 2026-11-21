@@ -7,7 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.capstoneproject.databinding.ActivitySignupBinding
 import com.example.capstoneproject.network.ApiClient
+import com.example.capstoneproject.network.LoginRequest
 import com.example.capstoneproject.network.RegisterRequest
+import com.example.capstoneproject.testing.AuthValidator
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -30,11 +32,11 @@ class SignupActivity : AppCompatActivity() {
         val password = binding.etPassword.text.toString()
         val confirmPassword = binding.etConfirmPassword.text.toString()
 
-        if (!validateInputs(name, email, password, confirmPassword)) return
+        // Validation rules live in AuthValidator (unit-tested in app/src/test, 17 cases).
+        AuthValidator.validateSignup(name, email, password, confirmPassword)?.let { showError(it); return }
 
         // Backend wants first_name + last_name; split on the first space.
-        val firstName = name.substringBefore(" ")
-        val lastName = name.substringAfter(" ", "").ifBlank { "-" }
+        val (firstName, lastName) = AuthValidator.splitName(name)
 
         binding.btnSignUp.isEnabled = false
         binding.btnSignUp.text = "Creating Account..."
@@ -50,8 +52,20 @@ class SignupActivity : AppCompatActivity() {
                         .putString("user_name", name)
                         .putString("email", email)
                         .apply()
-                    showSuccessMessage()
-                    navigateToLogin()
+                    // Step 2 of sign-up: log in straight away and collect the health profile,
+                    // so the account and its health data are created together.
+                    val login = ApiClient.api.login(LoginRequest(email = email, password = password))
+                    val token = login.body()?.access_token
+                    if (login.isSuccessful && token != null) {
+                        ApiClient.saveToken(token)
+                        getSharedPreferences("AppPreferences", MODE_PRIVATE).edit().putBoolean("isLoggedIn", true).apply()
+                        Toast.makeText(this@SignupActivity, "Account created! One more step.", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this@SignupActivity, ProfileSetupActivity::class.java))
+                        finish()
+                    } else {
+                        showSuccessMessage()
+                        navigateToLogin()
+                    }
                 } else {
                     // 409 email already registered, 422 password policy
                     showError(ApiClient.errorMessage(response))
@@ -64,25 +78,6 @@ class SignupActivity : AppCompatActivity() {
             }
         }
     }
-
-    /** Mirrors the backend policy (schemas.py): 8+ chars, 1 number, 1 special character. */
-    private fun validateInputs(name: String, email: String, password: String, confirmPassword: String): Boolean {
-        when {
-            name.isEmpty() -> { showError("Name is required"); return false }
-            email.isEmpty() -> { showError("Email is required"); return false }
-            !isValidEmail(email) -> { showError("Please enter a valid email address"); return false }
-            password.isEmpty() -> { showError("Password is required"); return false }
-            password.length < 8 -> { showError("Password must be at least 8 characters"); return false }
-            !password.any { it.isDigit() } -> { showError("Password must contain at least one number"); return false }
-            !password.any { !it.isLetterOrDigit() } -> { showError("Password must contain at least one special character"); return false }
-            confirmPassword.isEmpty() -> { showError("Please confirm your password"); return false }
-            password != confirmPassword -> { showError("Passwords do not match"); return false }
-        }
-        return true
-    }
-
-    private fun isValidEmail(email: String): Boolean =
-        android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
 
     private fun showError(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()

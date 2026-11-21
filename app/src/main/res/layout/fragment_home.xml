@@ -185,10 +185,12 @@
                             style="@style/TextBody" />
 
                         <TextView
+                            android:id="@+id/tvWorkoutsToday"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Rest day"
-                            style="@style/TextCaption" />
+                            android:text="—"
+                            style="@style/TextCaption"
+                            android:textColor="@color/info" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
